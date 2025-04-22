@@ -32,6 +32,8 @@ import random
 import torch
 import logging
 import yamlargparse
+from tqdm import tqdm
+import sys
 
 
 def _init_fn(worker_id):
@@ -95,6 +97,7 @@ def get_training_dataloaders(
         num_workers=args.num_workers,
         shuffle=True,
         worker_init_fn=_init_fn,
+        pin_memory=True,
     )
 
     dev_set = KaldiDiarizationDataset(
@@ -119,6 +122,7 @@ def get_training_dataloaders(
         num_workers=1,
         shuffle=False,
         worker_init_fn=_init_fn,
+        pin_memory=True,
     )
 
     Y_train, _, _ = train_set.__getitem__(0)
@@ -213,6 +217,14 @@ def parse_arguments() -> SimpleNamespace:
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[
+            logging.FileHandler('./output/train.log', mode='w'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
     args = parse_arguments()
 
     # For reproducibility
@@ -222,9 +234,9 @@ if __name__ == '__main__':
     np.random.seed(args.seed)  # Numpy module.
     random.seed(args.seed)  # Python random module.
     torch.manual_seed(args.seed)
-    torch.backends.cudnn.enabled = False
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.enabled = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
     os.environ['PYTHONHASHSEED'] = str(args.seed)
 
     logging.info(args)
@@ -275,7 +287,7 @@ if __name__ == '__main__':
 
     for epoch in range(init_epoch, args.max_epochs):
         model.train()
-        for i, batch in enumerate(train_loader):
+        for i, batch in tqdm(enumerate(train_loader), ncols=100, total=len(train_loader)):
             features = batch['xs']
             labels = batch['ts']
             n_speakers = np.asarray([max(torch.where(t.sum(0) != 0)[0]) + 1
@@ -321,7 +333,7 @@ if __name__ == '__main__':
                 labels = pad_labels(labels, max_n_speakers)
                 features = torch.stack(features).to(args.device)
                 labels = torch.stack(labels).to(args.device)
-                _, acum_dev_metrics = compute_loss_and_metrics(
+                dev_loss, acum_dev_metrics = compute_loss_and_metrics(
                     model, labels, features, n_speakers, acum_dev_metrics,
                     args.vad_loss_weight,
                     args.detach_attractor_loss)
@@ -329,4 +341,11 @@ if __name__ == '__main__':
             writer.add_scalar(
                 f"dev_{k}", acum_dev_metrics[k] / dev_batches_qty,
                 epoch * dev_batches_qty + i)
+
+        logging.info(f"Epoch: {epoch+1}, Training loss: {loss.item():.4f}, Dev loss: {dev_loss.item():.4f}, "
+             f"Dev DER_miss: {acum_dev_metrics['DER_miss'] / dev_batches_qty:.2f}, "
+             f"Dev DER_FA: {acum_dev_metrics['DER_FA'] / dev_batches_qty:.2f}, "
+             f"Dev DER_conf: {acum_dev_metrics['DER_conf'] / dev_batches_qty:.2f}, "
+             f"Dev DER: {acum_dev_metrics['DER'] / dev_batches_qty:.2f}")
+
         acum_dev_metrics = reset_metrics(acum_dev_metrics)
