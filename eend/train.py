@@ -342,10 +342,11 @@ if __name__ == '__main__':
                 f"dev_{k}", acum_dev_metrics[k] / dev_batches_qty,
                 epoch * dev_batches_qty + i)
 
-        logging.info(f"Epoch: {epoch+1}, Training loss: {loss.item():.4f}, Dev loss: {dev_loss.item():.4f}, "
+        logging.info(f"Epoch: {epoch+1:03d}, Training loss: {loss.item():.4f}, Dev loss: {dev_loss.item():.4f}, "
              f"Dev DER_miss: {acum_dev_metrics['DER_miss'] / dev_batches_qty:.2f}, "
              f"Dev DER_FA: {acum_dev_metrics['DER_FA'] / dev_batches_qty:.2f}, "
              f"Dev DER_conf: {acum_dev_metrics['DER_conf'] / dev_batches_qty:.2f}, "
              f"Dev DER: {acum_dev_metrics['DER'] / dev_batches_qty:.2f}")
 
+        acum_train_metrics = reset_metrics(acum_train_metrics)
         acum_dev_metrics = reset_metrics(acum_dev_metrics)
