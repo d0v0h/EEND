@@ -217,14 +217,6 @@ def parse_arguments() -> SimpleNamespace:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(message)s',
-        handlers=[
-            logging.FileHandler('./output/train.log', mode='w'),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
     args = parse_arguments()
 
     # For reproducibility
@@ -239,9 +231,17 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = False
     os.environ['PYTHONHASHSEED'] = str(args.seed)
 
-    logging.info(args)
-
     writer = SummaryWriter(f"{args.output_path}/tensorboard")
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s',
+        handlers=[
+            logging.FileHandler(f'{args.output_path}/train.log', mode='w'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    logging.info(args)
 
     train_loader, dev_loader = get_training_dataloaders(args)
 

@@ -31,8 +31,7 @@ if [ $stage -le 1 ]; then
         --config $PROJ_DIR/examples/train.yaml \
         --train-data-dir $simu_train_dir \
         --valid-data-dir $simu_dev_dir \
-        --output-path $output_dir/simu
-    || exit 1
+        --output-path $output_dir/simu || exit 1
 fi
 
 # Inference
@@ -42,8 +41,7 @@ if [ $stage -le 2 ]; then
         --config $PROJ_DIR/examples/infer.yaml \
         --infer-data-dir $simu_test_dir \
         --models-path $output_dir/simu/models \
-        --rttms-dir $output_dir/simu
-    || exit 1
+        --rttms-dir $output_dir/simu || exit 1
 fi
 
 # Scoring
@@ -64,8 +62,7 @@ if [ $stage -le 4 ]; then
         --init-model-path $output_dir/simu/models \
         --train-data-dir $real_train_dir \
         --valid-data-dir $real_dev_dir \
-        --output-path $output_dir/real
-    || exit 1
+        --output-path $output_dir/real || exit 1
 fi
 
 # Inference
@@ -75,8 +72,7 @@ if [ $stage -le 5 ]; then
         --config $PROJ_DIR/examples/infer.yaml \
         --infer-data-dir $real_dev_dir \
         --models-path $output_dir/real/models \
-        --rttms-dir $output_dir/real
-    || exit 1
+        --rttms-dir $output_dir/real || exit 1
 fi
 
 # Scoring
