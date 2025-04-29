@@ -129,10 +129,10 @@ def postprocess_output(
     threshold: float,
     median_window_length: int
 ) -> np.ndarray:
-    thresholded = probabilities > threshold
+    # thresholded = probabilities > threshold
     # Use this instead if it fails with newer medfilt version
     # (see https://github.com/scipy/scipy/issues/16648)
-    # thresholded = 1.0 * (probabilities > threshold)
+    thresholded = 1.0 * (probabilities > threshold)
     filtered = np.zeros(thresholded.shape)
     for spk in range(filtered.shape[1]):
         filtered[:, spk] = medfilt(
@@ -249,12 +249,12 @@ if __name__ == '__main__':
 
     out_dir = join(
         args.rttms_dir,
-        f"epochs{args.epochs}",
-        f"timeshuffle{args.time_shuffle}",
-        (f"spk_qty{args.estimate_spk_qty}_"
-            f"spk_qty_thr{args.estimate_spk_qty_thr}"),
-        f"detection_thr{args.threshold}",
-        f"median{args.median_window_length}",
+        # f"epochs{args.epochs}",
+        # f"timeshuffle{args.time_shuffle}",
+        # (f"spk_qty{args.estimate_spk_qty}_"
+        #     f"spk_qty_thr{args.estimate_spk_qty_thr}"),
+        # f"detection_thr{args.threshold}",
+        # f"median{args.median_window_length}",
         "rttms"
     )
     Path(out_dir).mkdir(parents=True, exist_ok=True)
@@ -267,6 +267,10 @@ if __name__ == '__main__':
         post_y = postprocess_output(
             y_pred, args.subsampling,
             args.threshold, args.median_window_length)
-        rttm_filename = join(out_dir, f"{name}.rttm")
-        with open(rttm_filename, 'w') as rttm_file:
+        # rttm_filename = join(out_dir, f"{name}.rttm")
+        # with open(rttm_filename, 'w') as rttm_file:
+        #     hard_labels_to_rttm(post_y, name, rttm_file)
+
+        rttm_filename = join(out_dir, f'ref_{args.threshold}.rttm')
+        with open(rttm_filename, 'a') as rttm_file:
             hard_labels_to_rttm(post_y, name, rttm_file)
