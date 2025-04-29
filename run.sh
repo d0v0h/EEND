@@ -29,7 +29,7 @@ if [ $stage -le 1 ]; then
     echo "Start training"
     python eend/train.py \
         --config $PROJ_DIR/examples/train.yaml \
-        --train-data-dir $simu_dev_dir \
+        --train-data-dir $simu_train_dir \
         --valid-data-dir $simu_dev_dir \
         --output-path $output_dir/simu || exit 1
 fi
