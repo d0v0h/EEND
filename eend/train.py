@@ -72,6 +72,21 @@ def compute_loss_and_metrics(
     return loss, acum_metrics
 
 
+def compute_loss(
+    model: torch.nn.Module,
+    labels: torch.Tensor,
+    input: torch.Tensor,
+    n_speakers: List[int],
+    vad_loss_weight: float,
+    detach_attractor_loss: bool
+) -> torch.Tensor:
+    y_pred, attractor_loss = model(input, labels, n_speakers, args)
+    loss, _ = model.get_loss(
+        y_pred, labels, n_speakers, attractor_loss, vad_loss_weight,
+        detach_attractor_loss)
+    return loss
+
+
 def get_training_dataloaders(
     args: SimpleNamespace
 ) -> Tuple[DataLoader, DataLoader]:
@@ -267,7 +282,6 @@ if __name__ == '__main__':
     logging.info(f"#batches quantity for train: {train_batches_qty}")
     logging.info(f"#batches quantity for dev: {dev_batches_qty}")
 
-    acum_train_metrics = new_metrics()
     acum_dev_metrics = new_metrics()
 
     if os.path.isfile(os.path.join(
@@ -297,22 +311,10 @@ if __name__ == '__main__':
             labels = pad_labels(labels, max_n_speakers)
             features = torch.stack(features).to(args.device)
             labels = torch.stack(labels).to(args.device)
-            loss, acum_train_metrics = compute_loss_and_metrics(
-                model, labels, features, n_speakers, acum_train_metrics,
+            loss = compute_loss(
+                model, labels, features, n_speakers,
                 args.vad_loss_weight,
                 args.detach_attractor_loss)
-            if i % args.log_report_batches_num == \
-                    (args.log_report_batches_num-1):
-                for k in acum_train_metrics.keys():
-                    writer.add_scalar(
-                        f"train_{k}",
-                        acum_train_metrics[k] / args.log_report_batches_num,
-                        epoch * train_batches_qty + i)
-                writer.add_scalar(
-                    "lrate",
-                    get_rate(optimizer),
-                    epoch * train_batches_qty + i)
-                acum_train_metrics = reset_metrics(acum_train_metrics)
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.gradclip)
@@ -348,5 +350,4 @@ if __name__ == '__main__':
              f"Dev DER_conf: {acum_dev_metrics['DER_conf'] / dev_batches_qty:.2f}, "
              f"Dev DER: {acum_dev_metrics['DER'] / dev_batches_qty:.2f}")
 
-        acum_train_metrics = reset_metrics(acum_train_metrics)
         acum_dev_metrics = reset_metrics(acum_dev_metrics)
