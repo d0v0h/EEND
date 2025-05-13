@@ -99,7 +99,7 @@ class KaldiDiarizationDataset(torch.utils.data.Dataset):
                 self.chunk_indices.append(
                     (rec, 0, data_len * self.subsampling))
         logging.info(f"#files: {len(self.data.wavs)}, "
-                     "#chunks: {len(self.chunk_indices)}")
+                     f"#chunks: {len(self.chunk_indices)}")
 
         self.shuffle = shuffle
 
