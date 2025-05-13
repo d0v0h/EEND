@@ -16,7 +16,7 @@ simu_test_dir=$DB_DIR/simu/test_all_ns"$NS"_beta5_500
 
 # Real
 real_train_dir=$DB_DIR/real/callhome1_spk"$NS"
-real_dev_dir=$DB_DIR/real/callhome2_spk"$NS"
+real_test_dir=$DB_DIR/real/callhome2_spk"$NS"
 
 stage=1
 
@@ -61,7 +61,7 @@ if [ $stage -le 4 ]; then
         --config $PROJ_DIR/examples/adapt.yaml \
         --init-model-path $output_dir/simu/models \
         --train-data-dir $real_train_dir \
-        --valid-data-dir $real_dev_dir \
+        --valid-data-dir $real_train_dir \
         --output-path $output_dir/real || exit 1
 fi
 
@@ -70,7 +70,7 @@ if [ $stage -le 5 ]; then
     echo "Start inference"
     python eend/infer.py \
         --config $PROJ_DIR/examples/infer.yaml \
-        --infer-data-dir $real_dev_dir \
+        --infer-data-dir $real_test_dir \
         --models-path $output_dir/real/models \
         --rttms-dir $output_dir/real || exit 1
 fi
@@ -80,7 +80,7 @@ if [ $stage -le 6 ]; then
     echo "Start scoring"
     ./md-eval.pl \
         -c 0.25 \
-        -r $real_dev_dir/rttm \
+        -r $real_test_dir/rttm \
         -s $output_dir/real/rttms/ref_0.5.rttm \
         > $output_dir/real/result_th0.5_med11_collar0.25 2>/dev/null || exit 1
 fi
