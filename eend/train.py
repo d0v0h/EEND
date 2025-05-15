@@ -45,9 +45,12 @@ def _init_fn(worker_id):
 def _convert(
     batch: List[Tuple[torch.Tensor, torch.Tensor, str]]
 ) -> Dict[str, Any]:
-    return {'xs': [x for x, _, _ in batch],
-            'ts': [t for _, t, _ in batch],
-            'names': [r for _, _, r in batch]}
+    xs, ts, names = zip(*batch)
+    return {
+        'xs': list(xs),
+        'ts': list(ts),
+        'names': list(names)
+    }
 
 
 def compute_loss_and_metrics(
