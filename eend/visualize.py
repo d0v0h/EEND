@@ -20,46 +20,71 @@ def plot_embedding_with_centers(
 ):    
     frames = emb.shape[0]
 
-    # Convert to numpy array
-    emb_np = emb.cpu().numpy()
+    emb_np = emb.numpy()
     if attractors is not None:
-        attr_np = attractors.cpu().numpy()
-        all_data_np = np.concatenate((emb_np, attr_np), axis=0)
-    elif centers is not None:
-        centers_np = centers.cpu().numpy()
-        all_data_np = np.concatenate((emb_np, centers_np), axis=0)
-    
-    print(emb_np.mean(), emb_np.std())
-    print(attr_np.mean(), attr_np.std())
-    print(all_data_np.mean(), all_data_np.std())
-
-    # Normalization & PCA
-    scaler = StandardScaler()
-    pca = PCA(n_components=2)
-
-    all_data_scaled = scaler.fit_transform(all_data_np)
-
-    print(all_data_scaled.shape)
-
-    print(all_data_scaled.mean(), all_data_scaled.std())
-    print(all_data_scaled[:-2:].mean(), all_data_scaled[:-2].std())
-    print(all_data_scaled[-2:].mean(), all_data_scaled[-2:].std())
-    print(emb_np.max(), emb_np.min())
-    print(attr_np.max(), attr_np.min())
-
-    all_data_pca = pca.fit_transform(all_data_scaled)
-
-    emb_pca = all_data_pca[:frames, :]
-    if attractors is not None:
-        other_pca = all_data_pca[frames:, :]
+        feat_np = attractors.numpy()
         anotation = 'Attractor'
     elif centers is not None:
-        other_pca = all_data_pca[frames:, :]
+        feat_np = centers.numpy()
         anotation = 'Center'
-    
-    # Plotting
-    plt.figure(figsize=(10, 8))
+    all_data_np = np.concatenate((emb_np, feat_np), axis=0)
 
+    print(f'\nEmbedding')
+    print(f'Embedding shape: {emb_np.shape}')
+    print(f'Embbedding min: {emb_np.min()}')
+    print(f'Embbedding max: {emb_np.max()}')
+    print(f'Embbedding mean: {emb_np.mean()}')
+    print(f'Embbedding std: {emb_np.std()}')
+
+    print(f'\nFeature')
+    print(f'Feature shape: {feat_np.shape}')
+    print(f'Feature min: {feat_np.min()}')
+    print(f'Feature max: {feat_np.max()}')
+    print(f'Feature mean: {feat_np.mean()}')
+    print(f'Feature std: {feat_np.std()}')
+
+    scaler = StandardScaler()
+    scaler.fit(all_data_np)
+
+    emb_scaled = scaler.transform(emb_np)
+    feat_scaled = scaler.transform(feat_np)
+    all_data_scaled = scaler.transform(all_data_np)
+
+    print(f'\nScaled Embedding')
+    print(f'Scaled Embedding shape: {emb_scaled.shape}')
+    print(f'Scaled Embedding min: {emb_scaled.min()}')
+    print(f'Scaled Embedding max: {emb_scaled.max()}')
+    print(f'Scaled Embedding mean: {emb_scaled.mean()}')
+    print(f'Scaled Embedding std: {emb_scaled.std()}')
+
+    print(f'\nScaled Feature')
+    print(f'Scaled Feature shape: {feat_scaled.shape}')
+    print(f'Scaled Feature min: {feat_scaled.min()}')
+    print(f'Scaled Feature max: {feat_scaled.max()}')
+    print(f'Scaled Feature mean: {feat_scaled.mean()}')
+    print(f'Scaled Feature std: {feat_scaled.std()}')
+
+    pca = PCA(n_components=2)
+    pca.fit(all_data_scaled)
+    emb_pca = pca.transform(emb_scaled)
+    feat_pca = pca.transform(feat_scaled)
+
+    print(f'\nPCA Embedding')
+    print(f'PCA Embedding shape: {emb_pca.shape}')
+    print(f'PCA Embedding min: {emb_pca.min()}')
+    print(f'PCA Embedding max: {emb_pca.max()}')
+    print(f'PCA Embedding mean: {emb_pca.mean()}')
+    print(f'PCA Embedding std: {emb_pca.std()}')
+
+    print(f'\nPCA Feature')
+    print(f'PCA Feature shape: {feat_pca.shape}')
+    print(f'PCA Feature min: {feat_pca.min()}')
+    print(f'PCA Feature max: {feat_pca.max()}')
+    print(f'PCA Feature mean: {feat_pca.mean()}')
+    print(f'PCA Feature std: {feat_pca.std()}')
+
+    # Plotting
+    plt.figure(figsize=(10, 10))
     # Plot embeddings
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
     labels_text = ['Silence', 'Spk 1', 'Spk 2', 'Overlap']
@@ -73,7 +98,7 @@ def plot_embedding_with_centers(
     
     # Plot centers or attractors
     plt.scatter(
-        other_pca[:, 0], other_pca[:, 1],
+        feat_pca[:, 0], feat_pca[:, 1],
         marker='X', color='mediumpurple', label=anotation,
         s=300
     )
@@ -83,6 +108,7 @@ def plot_embedding_with_centers(
 
     plt.savefig(save_path)
     plt.close()
+
 
 
 def parse_arguments() -> SimpleNamespace:
