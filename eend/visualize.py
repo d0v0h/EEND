@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, MaxAbsScaler
 import yamlargparse
 from types import SimpleNamespace
 
@@ -18,8 +18,6 @@ def plot_embedding_with_centers(
     title='Embedding & Attractor/Center PCA', # 기본값도 PCA로 변경하는 것이 좋습니다.
     n_speakers=None
 ):    
-    frames = emb.shape[0]
-
     emb_np = emb.numpy()
     if attractors is not None:
         feat_np = attractors.numpy()
@@ -27,64 +25,24 @@ def plot_embedding_with_centers(
     elif centers is not None:
         feat_np = centers.numpy()
         anotation = 'Center'
-    all_data_np = np.concatenate((emb_np, feat_np), axis=0)
+    else:
+        raise ValueError("Either attractors or centers must be provided")
 
-    print(f'\nEmbedding')
-    print(f'Embedding shape: {emb_np.shape}')
-    print(f'Embbedding min: {emb_np.min()}')
-    print(f'Embbedding max: {emb_np.max()}')
-    print(f'Embbedding mean: {emb_np.mean()}')
-    print(f'Embbedding std: {emb_np.std()}')
+    all_data = np.concatenate((emb_np, feat_np), axis=0)
 
-    print(f'\nFeature')
-    print(f'Feature shape: {feat_np.shape}')
-    print(f'Feature min: {feat_np.min()}')
-    print(f'Feature max: {feat_np.max()}')
-    print(f'Feature mean: {feat_np.mean()}')
-    print(f'Feature std: {feat_np.std()}')
-
-    scaler = StandardScaler()
-    scaler.fit(all_data_np)
-
+    scaler = MaxAbsScaler()
+    scaler.fit(all_data)
+    all_data_scaled = scaler.transform(all_data)
     emb_scaled = scaler.transform(emb_np)
     feat_scaled = scaler.transform(feat_np)
-    all_data_scaled = scaler.transform(all_data_np)
-
-    print(f'\nScaled Embedding')
-    print(f'Scaled Embedding shape: {emb_scaled.shape}')
-    print(f'Scaled Embedding min: {emb_scaled.min()}')
-    print(f'Scaled Embedding max: {emb_scaled.max()}')
-    print(f'Scaled Embedding mean: {emb_scaled.mean()}')
-    print(f'Scaled Embedding std: {emb_scaled.std()}')
-
-    print(f'\nScaled Feature')
-    print(f'Scaled Feature shape: {feat_scaled.shape}')
-    print(f'Scaled Feature min: {feat_scaled.min()}')
-    print(f'Scaled Feature max: {feat_scaled.max()}')
-    print(f'Scaled Feature mean: {feat_scaled.mean()}')
-    print(f'Scaled Feature std: {feat_scaled.std()}')
-
+    
     pca = PCA(n_components=2)
     pca.fit(all_data_scaled)
     emb_pca = pca.transform(emb_scaled)
     feat_pca = pca.transform(feat_scaled)
 
-    print(f'\nPCA Embedding')
-    print(f'PCA Embedding shape: {emb_pca.shape}')
-    print(f'PCA Embedding min: {emb_pca.min()}')
-    print(f'PCA Embedding max: {emb_pca.max()}')
-    print(f'PCA Embedding mean: {emb_pca.mean()}')
-    print(f'PCA Embedding std: {emb_pca.std()}')
-
-    print(f'\nPCA Feature')
-    print(f'PCA Feature shape: {feat_pca.shape}')
-    print(f'PCA Feature min: {feat_pca.min()}')
-    print(f'PCA Feature max: {feat_pca.max()}')
-    print(f'PCA Feature mean: {feat_pca.mean()}')
-    print(f'PCA Feature std: {feat_pca.std()}')
-
     # Plotting
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(10, 8))
     # Plot embeddings
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
     labels_text = ['Silence', 'Spk 1', 'Spk 2', 'Overlap']
@@ -102,14 +60,12 @@ def plot_embedding_with_centers(
         marker='X', color='mediumpurple', label=anotation,
         s=300
     )
-    
     plt.title(title)
     plt.legend()
 
+    plt.tight_layout()
     plt.savefig(save_path)
     plt.close()
-
-
 
 def parse_arguments() -> SimpleNamespace:
     parser = yamlargparse.ArgumentParser(description='EEND inference')
@@ -232,17 +188,17 @@ if __name__ == '__main__':
     
     print(f'speakers: {n_speakers}')
     with torch.no_grad():
-        emb = model.enc(feature)                # (T, D)
+        emb_batch = model.get_embeddings(feature)
+        emb = emb_batch.squeeze(0)
 
         if args.type == 'EDA':
-            emb_temp = emb.unsqueeze(0)
-            _, attractors = model.eda(emb_temp, [n_speakers])
-            attractors = attractors.squeeze(0)  # (C, D)
+            _, attractors = model.eda(emb_batch, [n_speakers])
+            attractors = attractors.squeeze(0)
 
             plot_embedding_with_centers(
-                emb=emb,
+                emb=emb,              
                 labels=labels_1d,
-                attractors=attractors,
+                attractors=attractors,       
                 save_path=save_path,
                 title='Embedding & Attractor PCA',
                 n_speakers=n_speakers
