@@ -1,77 +1,60 @@
+from backend.models import (
+    average_checkpoints,
+    get_model,
+)
 import os
-import random
-import numpy as np
 import torch
+import numpy as np
+import random
+from types import SimpleNamespace
+import yamlargparse
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, MaxAbsScaler
-import yamlargparse
-from types import SimpleNamespace
+from sklearn.preprocessing import StandardScaler
 
 
-def plot_embedding_with_centers(
-    emb,           # (T, F) torch.Tensor
-    labels,        # (T,) numpy array or torch.Tensor, 0: silence, 1: spk1, 2: spk2, 3: overlap 등
-    centers=None,  # (C, F) torch.Tensor or None
-    attractors=None, # (C, F) torch.Tensor or None
-    save_path=None,
-    title='Embedding & Attractor/Center PCA', # 기본값도 PCA로 변경하는 것이 좋습니다.
-    n_speakers=None
-):    
-    emb_np = emb.numpy()
-    if attractors is not None:
-        feat_np = attractors.numpy()
-        anotation = 'Attractor'
-    elif centers is not None:
-        feat_np = centers.numpy()
-        anotation = 'Center'
-    else:
-        raise ValueError("Either attractors or centers must be provided")
+def plot_embedding_and_attractors(
+    emb,
+    attractors,
+    labels,
+    save_path,
+    n_speakers
+):
+    emb = emb.squeeze(0).detach().cpu().numpy()
+    attractors = attractors.squeeze(0).detach().cpu().numpy()
+    attractors = attractors[:n_speakers, :]
 
-    all_data = np.concatenate((emb_np, feat_np), axis=0)
+    all_data = np.concatenate((emb, attractors), axis=0)
 
-    scaler = MaxAbsScaler()
-    scaler.fit(all_data)
-    all_data_scaled = scaler.transform(all_data)
-    emb_scaled = scaler.transform(emb_np)
-    feat_scaled = scaler.transform(feat_np)
-    
+    scaler = StandardScaler()
+    all_data = scaler.fit_transform(all_data)
+    emb = scaler.transform(emb)
+    attractors = scaler.transform(attractors)
+
     pca = PCA(n_components=2)
-    pca.fit(all_data_scaled)
-    emb_pca = pca.transform(emb_scaled)
-    feat_pca = pca.transform(feat_scaled)
+    pca.fit(all_data)
+    emb_2d = pca.transform(emb)
+    attractors_2d = pca.transform(attractors)
 
-    # Plotting
     plt.figure(figsize=(10, 8))
-    # Plot embeddings
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+
+    colors = ['blue', 'orange', 'green', 'red']
     labels_text = ['Silence', 'Spk 1', 'Spk 2', 'Overlap']
     for i in np.unique(labels):
         mask = labels == i
-        plt.scatter(emb_pca[mask, 0], emb_pca[mask, 1],
-                    label = labels_text[i],
-                    color =colors[i],
-                    alpha=0.6
-        )
-    
-    # Plot centers or attractors
-    plt.scatter(
-        feat_pca[:, 0], feat_pca[:, 1],
-        marker='X', color='mediumpurple', label=anotation,
-        s=300
-    )
-    plt.title(title)
+        plt.scatter(emb_2d[mask, 0], emb_2d[mask, 1],
+                    label=labels_text[i], color=colors[i], alpha=0.7)
+    plt.scatter(attractors_2d[:n_speakers, 0], attractors_2d[:n_speakers, 1],
+                label='Attractors', color='mediumpurple', marker='X',
+                s=300)
+    plt.title('2D PCA of Embeddings and Attractors')
     plt.legend()
-
-    plt.tight_layout()
-    plt.savefig(save_path)
+    plt.savefig(os.path.join(save_path, 'embeddings.png'))
     plt.close()
+
 
 def parse_arguments() -> SimpleNamespace:
     parser = yamlargparse.ArgumentParser(description='EEND inference')
-    parser.add_argument('--type', type=str, default='EDA',
-                        choices=['EDA', 'CA'],
-                        help='Type of model to use (EDA or CA)')
     parser.add_argument('-c', '--config', help='config file path',
                         action=yamlargparse.ActionConfigFile)
     parser.add_argument('--context-size', default=0, type=int)
@@ -131,11 +114,10 @@ def parse_arguments() -> SimpleNamespace:
     args = parser.parse_args()
     return args
 
-
 if __name__ == '__main__':
+    # 1. Parse arguments
     args = parse_arguments()
 
-    # For reproducibility
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)  # if you are using multi-GPU.
@@ -148,71 +130,44 @@ if __name__ == '__main__':
 
     args.device = torch.device('cpu')
 
-    # Setting epochs
-    data_type = 'simu'
-    init_epochs = '90-100'
-
-    # Setting EXP type
-    if args.type == 'EDA':
-        from backend.models import get_model, average_checkpoints
-        model_path = f'/mnt/impress/Lab/EEND/exp/EEND_EDA/{data_type}/models'
-        model = get_model(args)
-        model = average_checkpoints(
-            args.device, model, model_path, init_epochs)
-    elif args.type == 'CA':
-        from backend.models_ca import get_model, average_checkpoints
-        model_path = f'/mnt/impress/Lab/EEND/exp/EEND_CA/{data_type}/models'
-        model = get_model(args)
-        model = average_checkpoints(
-            args.device, model, model_path, init_epochs)
-    else:
-        raise ValueError(f"Unknown type: {args.type}")
+    # 2. Load model
+    model = get_model(args)
+    args.models_path = '/mnt/impress/Lab/EEND/exp/EEND_EDA/simu/models'
+    model = average_checkpoints(
+        args.device, model, args.models_path, args.epochs)
     model.eval()
 
+    # 3. Load data
+    data_path = '/mnt/impress/Lab/EEND/DB'
+    data_type = 'simu'
+    data_tdt = 'test_all_ns2_beta5_500'
+    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[234]
 
-    # Load data
-    data_path = f'/mnt/impress/Lab/EEND/DB/{data_type}/test_all_ns2_beta5_500/.cache/data_simu_wav_test_all_ns2_beta5_500_1_mix_0000001_0_19660.npz'
-    data = np.load(data_path)
+    data = np.load(os.path.join(data_path, data_type, data_tdt, '.cache', data_name))
 
-    feature = data['Y']                     # (T, F)
-    label = data['T']                       # (T, C)
-    feature = torch.from_numpy(feature).unsqueeze(0).to(args.device)
-    label = torch.from_numpy(label).to(args.device)
+    y = torch.from_numpy(data['Y']).unsqueeze(0)
+    t = torch.from_numpy(data['T'])
 
-    n_speakers = label.shape[1]
+    n_speakers = args.estimate_spk_qty
+    powers = torch.tensor(torch.arange(1, n_speakers + 1))
+    labels_1d = torch.sum(t * powers, dim=-1)
 
-    powers = torch.tensor(torch.arange(1, n_speakers + 1), device=args.device)
-    labels_1d = torch.sum(label * powers, dim=-1)
-
-    save_path = f'/mnt/impress/Lab/EEND/exp/EEND_{args.type}/{data_type}/img/embeddings.png'
+    # 4. Inference
+    emb = model.get_embeddings(y)
+    if args.time_shuffle:
+        orders = [np.arange(e.shape[0]) for e in emb]
+        for order in orders:
+            np.random.shuffle(order)
+        attractors, probs = model.eda.estimate(
+            torch.stack([e[order] for e, order in zip(emb, orders)]))
+    else:
+        attractors, probs = model.eda.estimate(emb)
     
-    print(f'speakers: {n_speakers}')
-    with torch.no_grad():
-        emb_batch = model.get_embeddings(feature)
-        emb = emb_batch.squeeze(0)
-
-        if args.type == 'EDA':
-            _, attractors = model.eda(emb_batch, [n_speakers])
-            attractors = attractors.squeeze(0)
-
-            plot_embedding_with_centers(
-                emb=emb,              
-                labels=labels_1d,
-                attractors=attractors,       
-                save_path=save_path,
-                title='Embedding & Attractor PCA',
-                n_speakers=n_speakers
-            )
-
-        elif args.type == 'CA':
-            centers = model.ca.centers.weight
-            centers = centers[:n_speakers, :]
-        
-            plot_embedding_with_centers(
-                emb=emb,
-                labels=labels_1d,
-                centers=centers,
-                save_path=save_path,
-                title='Embedding & Center PCA',
-                n_speakers=n_speakers
-            )
+    # 5. Plot embeddings and attractors
+    print(f'---> Load data from {data_name}')
+    save_path = '/mnt/impress/Lab/EEND/exp/EEND_EDA/simu/img'
+    plot_embedding_and_attractors(emb,
+                                  attractors,
+                                  labels_1d,
+                                  save_path,
+                                  n_speakers = args.estimate_spk_qty)
