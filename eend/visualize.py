@@ -18,11 +18,9 @@ def plot_embedding_and_attractors(
     attractors,
     labels,
     save_path,
-    n_speakers
 ):
     emb = emb.squeeze(0).detach().cpu().numpy()
-    attractors = attractors.squeeze(0).detach().cpu().numpy()
-    attractors = attractors[:n_speakers, :]
+    attractors = attractors.detach().cpu().numpy()
 
     scaler_e = StandardScaler()
     scaled_emb = scaler_e.fit_transform(emb)
@@ -43,7 +41,7 @@ def plot_embedding_and_attractors(
         mask = labels == i
         plt.scatter(emb_2d[mask, 0], emb_2d[mask, 1],
                     label=labels_text[i], color=colors[i], alpha=0.7)
-    plt.scatter(attractors_2d[:n_speakers, 0], attractors_2d[:n_speakers, 1],
+    plt.scatter(attractors_2d[:, 0], attractors_2d[:, 1],
                 label='Attractors', color='mediumpurple', marker='X',
                 s=300)
     plt.title('2D PCA of Embeddings and Attractors')
@@ -140,14 +138,14 @@ if __name__ == '__main__':
     data_path = '/mnt/impress/Lab/EEND/DB'
     data_type = 'simu'
     data_tdt = 'test_all_ns2_beta5_500'
-    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[420]
+    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[133]
 
     data = np.load(os.path.join(data_path, data_type, data_tdt, '.cache', data_name))
 
     y = torch.from_numpy(data['Y']).unsqueeze(0)
     t = torch.from_numpy(data['T'])
 
-    n_speakers = args.estimate_spk_qty
+    n_speakers = t.shape[1]
     powers = torch.tensor(torch.arange(1, n_speakers + 1))
     labels_1d = torch.sum(t * powers, dim=-1)
 
@@ -162,11 +160,16 @@ if __name__ == '__main__':
     else:
         attractors, probs = model.eda.estimate(emb)
     
+    if args.estimate_spk_qty != -1:
+        sorted_p, order = torch.sort(probs[0], descending=True)
+        print(order, order[:args.estimate_spk_qty])
+        attractors = attractors[0][order[:args.estimate_spk_qty], :]
+    elif args.estimate_spk_qty_thr != -1:
+        NotImplementedError('우선 estimate_spk_qty_thr는 구현하지 않음')
+    else:
+        NotImplementedError('estimate_spk_qty와 estimate_spk_qty_thr 중 하나를 지정해야 함')
+    
     # 5. Plot embeddings and attractors
     print(f'---> Load data from {data_name}')
     save_path = '/mnt/impress/Lab/EEND/exp/EEND_EDA/simu/img'
-    plot_embedding_and_attractors(emb,
-                                  attractors,
-                                  labels_1d,
-                                  save_path,
-                                  n_speakers = args.estimate_spk_qty)
+    plot_embedding_and_attractors(emb, attractors, labels_1d, save_path)
