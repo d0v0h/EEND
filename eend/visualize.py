@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import yamlargparse
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 def plot_embedding_and_attractors(
@@ -24,17 +24,16 @@ def plot_embedding_and_attractors(
     attractors = attractors.squeeze(0).detach().cpu().numpy()
     attractors = attractors[:n_speakers, :]
 
-    all_data = np.concatenate((emb, attractors), axis=0)
+    scaler_e = StandardScaler()
+    scaled_emb = scaler_e.fit_transform(emb)
 
-    scaler = StandardScaler()
-    all_data = scaler.fit_transform(all_data)
-    emb = scaler.transform(emb)
-    attractors = scaler.transform(attractors)
+    all_data = np.concatenate((scaled_emb, attractors), axis=0)
 
     pca = PCA(n_components=2)
     pca.fit(all_data)
-    emb_2d = pca.transform(emb)
+    emb_2d = pca.transform(scaled_emb)
     attractors_2d = pca.transform(attractors)
+
 
     plt.figure(figsize=(10, 8))
 
@@ -141,7 +140,7 @@ if __name__ == '__main__':
     data_path = '/mnt/impress/Lab/EEND/DB'
     data_type = 'simu'
     data_tdt = 'test_all_ns2_beta5_500'
-    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[234]
+    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[420]
 
     data = np.load(os.path.join(data_path, data_type, data_tdt, '.cache', data_name))
 
