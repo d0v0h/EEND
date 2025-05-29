@@ -345,7 +345,7 @@ if __name__ == '__main__':
         for k in acum_dev_metrics.keys():
             writer.add_scalar(
                 f"dev_{k}", acum_dev_metrics[k] / dev_batches_qty,
-                epoch * dev_batches_qty + i)
+                epoch + 1)
 
         logging.info(f"Epoch: {epoch+1:03d}, Training loss: {loss.item():.4f}, Dev loss: {dev_loss.item():.4f}, "
              f"Dev DER_miss: {acum_dev_metrics['DER_miss'] / dev_batches_qty:.2f}, "

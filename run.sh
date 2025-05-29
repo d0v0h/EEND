@@ -11,8 +11,8 @@ DB_DIR=$PROJ_DIR/DB
 
 # Simulated
 simu_train_dir=$DB_DIR/simu/train_all_ns"$NS"_beta8_100000
-simu_dev_dir=$DB_DIR/simu/dev_all_ns"$NS"_beta5_500
-simu_test_dir=$DB_DIR/simu/test_all_ns"$NS"_beta5_500
+simu_dev_dir=$DB_DIR/simu/dev_all_ns"$NS"_beta4_500
+simu_test_dir=$DB_DIR/simu/test_all_ns"$NS"_beta4_500
 
 # Real
 real_train_dir=$DB_DIR/real/callhome1_spk"$NS"
