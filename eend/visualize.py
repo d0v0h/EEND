@@ -137,8 +137,8 @@ if __name__ == '__main__':
     # 3. Load data
     data_path = '/mnt/impress/Lab/EEND/DB'
     data_type = 'simu'
-    data_tdt = 'test_all_ns2_beta5_500'
-    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[133]
+    data_tdt = 'test_all_ns2_beta4_500'
+    data_name = os.listdir(os.path.join(data_path, data_type, data_tdt, '.cache'))[0]
 
     data = np.load(os.path.join(data_path, data_type, data_tdt, '.cache', data_name))
 
